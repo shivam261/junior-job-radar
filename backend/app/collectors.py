@@ -12,7 +12,7 @@ from urllib.robotparser import RobotFileParser
 import httpx
 from bs4 import BeautifulSoup
 from .matching import plain, software_title, match_job, skills_from, work_mode
-from .sources import resolve_public, identify, linked_sources, atlassian_postings
+from .sources import resolve_public, identify, linked_sources, atlassian_postings, atlassian_matches, InvalidSource
 
 MAX_PAGES = int(os.getenv("MAX_SOURCE_PAGES", "150"))
 USER_AGENT = "LaunchpadJobCollector/1.0 (public career listings; personal use)"
@@ -23,6 +23,7 @@ class Snapshot:
     jobs: list[dict]
     complete: bool = True
     source_ids: set[str] | None = None
+    warning: str | None = None
 
 
 class SourceError(Exception):
@@ -144,11 +145,13 @@ class Collector:
 
     async def atlassian(self,c,cfg):
         url='https://www.atlassian.com/company/careers/all-jobs'
+        source_url=c.get('url',url)
+        filters=[(key,value) for key,value in parse_qsl(urlparse(source_url).query) if key in ('team','location')]
+        if filters:url+='?'+urlencode(filters)
         await self.allowed(url)
         response=await self.request(url)
         rows=atlassian_postings(response.text)
         if not rows:raise SourceError('Atlassian did not expose its embedded job list. Earlier jobs were retained.')
-        jobs=[]
         gate=asyncio.Semaphore(3)
         async def detail(row):
             async with gate:
@@ -186,10 +189,22 @@ class Collector:
                     lines=description.splitlines()
                     if len(lines)>1 and '|' in lines[1]:locations=lines[1].split('|',1)[1].strip()
                 return normalize(c,row['id'],row['title'],locations,description,detail_url,None,row.get('type'))
-        candidates=[row for row in rows if software_title(row['title'])]
-        results=await asyncio.gather(*(detail(row) for row in candidates))
-        jobs.extend(job for job in results if job)
-        return Snapshot(jobs,source_ids={str(row['id']) for row in rows})
+        candidates=[row for row in rows if software_title(row['title']) and atlassian_matches(row,source_url)]
+        results=await asyncio.gather(*(detail(row) for row in candidates),return_exceptions=True)
+        jobs,failures=[],[]
+        for row,result in zip(candidates,results):
+            if isinstance(result,(SourceError,InvalidSource)):
+                failures.append(f"Job {row['id']}: {result}")
+            elif isinstance(result,BaseException):
+                raise result
+            elif result:
+                jobs.append(result)
+        warning=None
+        if failures:
+            warning=(f"Atlassian: {len(failures)} of {len(candidates)} candidate job details could not be read. "
+                     f"Earlier jobs were retained. {failures[0]}")
+            if len(failures)==len(candidates):raise SourceError(warning)
+        return Snapshot(jobs,complete=not failures,source_ids={str(row['id']) for row in rows},warning=warning)
 
     async def workday(self, c, cfg):
         base = f"https://{cfg['host']}/wday/cxs/{cfg['tenant']}/{cfg['site']}"

@@ -12,6 +12,14 @@ Corrections made from employer pages and live feed responses include:
 
 The JPMorgan candidate feed and its description endpoint were checked directly, including the required `expand=requisitionList` parameter and `ById` finder for details. Its software-keyword collection is deliberately marked partial.
 
+## Atlassian follow-up — 17 October 2026
+
+The stored Atlassian source error was HTTP 503. The collector already retries transient HTTP failures, but one unavailable detail page previously failed the entire company refresh. The adapter now saves readable matches with partial coverage and a specific warning, preserving older jobs. Failure to read the board or every candidate detail still reports an error.
+
+Live checks against [the global board](https://www.atlassian.com/company/careers/all-jobs) and [Engineering in India](https://www.atlassian.com/company/careers/all-jobs?team=Engineering&location=India) read 328 embedded postings. The global collector returned five eligible matches; the filtered collector returned zero, both with complete snapshots. The embedded data is global for both URLs, so URL filters must be applied by the collector. The India Engineering board contained 24 roles, but its only software title passing the senior-title exclusion was [Backend Software Engineer, II](https://www.atlassian.com/company/careers/details/25540), whose description requires 4+ years of experience. Zero eligible India matches is therefore expected under the portal's conservative 0–2 year rules. These live checks did not write to the application database.
+
+Regression coverage verifies URL filters, unrelated-detail exclusion, partial collection after HTTP 503 or unreadable details, all-detail failure, zero eligible matches, and preservation of existing jobs and bookmarks during partial refreshes. The full backend suite passed (72 tests), and the frontend production build passed.
+
 ## Repeat the audit
 
 From the project root:

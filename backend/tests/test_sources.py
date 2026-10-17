@@ -3,8 +3,8 @@ import json
 import socket
 import httpx
 import pytest
-from app.sources import identify,linked_sources,atlassian_postings,public_url,resolve_public,InvalidSource
-from app.collectors import Collector
+from app.sources import identify,linked_sources,atlassian_postings,atlassian_matches,public_url,resolve_public,InvalidSource
+from app.collectors import Collector,SourceError
 from app import db
 
 @pytest.mark.parametrize('url,adapter,token',[
@@ -94,3 +94,79 @@ async def test_atlassian_visible_main_description_without_jobposting_jsonld():
     assert len(snapshot.jobs)==1 and snapshot.complete
     assert 'Unrelated marketing' not in snapshot.jobs[0]['description']
     assert snapshot.jobs[0]['location']=='Bengaluru, India'
+
+
+@pytest.mark.parametrize('category,locations,expected',[
+    ('Engineering',['Bengaluru - India','Remote - Remote'],True),
+    ('Engineering',['Indianapolis - United States'],False),
+    ('Engineering',['Canada'],False),
+    ('Graduates',['India'],False),
+    ('Engineering',None,False),
+])
+def test_atlassian_url_filters(category,locations,expected):
+    row={'category':category,'locations':locations}
+    url='https://www.atlassian.com/company/careers/all-jobs?team=Engineering&location=India'
+    assert atlassian_matches(row,url) is expected
+    assert atlassian_matches(row,url.split('?')[0])
+
+
+@pytest.mark.asyncio
+async def test_atlassian_filtered_url_does_not_fetch_unrelated_details():
+    url='https://www.atlassian.com/company/careers/all-jobs?team=Engineering&location=India'
+    rows=[dict(id=str(i),applyUrl='https://example.com/apply',title='Graduate Software Engineer',category=team,locations=[place])
+          for i,team,place in [(1,'Engineering','Bengaluru - India'),(2,'Engineering','Canada'),(3,'Graduates','India')]]
+    requested=[]
+    def respond(request):
+        requested.append(request.url)
+        if request.url.path=='/robots.txt':return httpx.Response(200,text='User-agent: *\nAllow: /')
+        if request.url.path.endswith('all-jobs'):
+            assert request.url.params['team']=='Engineering' and request.url.params['location']=='India'
+            return httpx.Response(200,text='<script>window._uniformPreloadedComposition='+json.dumps(rows)+'</script>')
+        assert request.url.path.endswith('/1')
+        return httpx.Response(200,text='<script type="application/ld+json">'+json.dumps({'@type':'JobPosting','description':'0–2 years of experience.'})+'</script>')
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        snapshot=await Collector(client).collect({'id':'atlassian','url':url,'adapter':'atlassian','config':{}})
+    assert snapshot.complete and [job['source_id'] for job in snapshot.jobs]==['1']
+    assert snapshot.source_ids=={'1','2','3'}
+    assert len(requested)==3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure',['unavailable','unreadable'])
+async def test_atlassian_one_failed_detail_keeps_successful_results(failure):
+    rows=[dict(id=str(i),applyUrl='https://example.com/apply',title='Graduate Software Engineer',locations=['India']) for i in (1,2)]
+    def respond(request):
+        if request.url.path=='/robots.txt':return httpx.Response(200,text='User-agent: *\nAllow: /')
+        if request.url.path.endswith('all-jobs'):return httpx.Response(200,text='<script>window._uniformPreloadedComposition='+json.dumps(rows)+'</script>')
+        if request.url.path.endswith('/2'):
+            return httpx.Response(503,headers={'Retry-After':'0'}) if failure=='unavailable' else httpx.Response(200,text='<main>Job unavailable</main>')
+        return httpx.Response(200,text='<script type="application/ld+json">'+json.dumps({'@type':'JobPosting','description':'0–2 years of experience.'})+'</script>')
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        snapshot=await Collector(client).collect({'id':'atlassian','adapter':'atlassian','config':{}})
+    assert not snapshot.complete
+    assert [job['source_id'] for job in snapshot.jobs]==['1']
+    assert '1 of 2' in snapshot.warning and 'Job 2' in snapshot.warning
+
+
+@pytest.mark.asyncio
+async def test_atlassian_all_failed_details_report_source_error():
+    rows=[dict(id='1',applyUrl='https://example.com/apply',title='Graduate Software Engineer',locations=['India'])]
+    def respond(request):
+        if request.url.path=='/robots.txt':return httpx.Response(200,text='User-agent: *\nAllow: /')
+        if request.url.path.endswith('all-jobs'):return httpx.Response(200,text='<script>window._uniformPreloadedComposition='+json.dumps(rows)+'</script>')
+        return httpx.Response(404)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(SourceError,match='1 of 1'):
+            await Collector(client).collect({'id':'atlassian','adapter':'atlassian','config':{}})
+
+
+@pytest.mark.asyncio
+async def test_atlassian_no_eligible_jobs_is_a_complete_success():
+    rows=[dict(id='1',applyUrl='https://example.com/apply',title='Backend Software Engineer, II',locations=['Bengaluru - India'],category='Engineering')]
+    def respond(request):
+        if request.url.path=='/robots.txt':return httpx.Response(200,text='User-agent: *\nAllow: /')
+        if request.url.path.endswith('all-jobs'):return httpx.Response(200,text='<script>window._uniformPreloadedComposition='+json.dumps(rows)+'</script>')
+        return httpx.Response(200,text='<script type="application/ld+json">'+json.dumps({'@type':'JobPosting','description':'4+ years of experience building backend applications.'})+'</script>')
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        snapshot=await Collector(client).collect({'id':'atlassian','adapter':'atlassian','config':{}})
+    assert snapshot.complete and snapshot.jobs==[] and snapshot.warning is None
