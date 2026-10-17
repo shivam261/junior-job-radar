@@ -69,3 +69,25 @@ async def test_new_company_is_queued_after_running_refresh(database,monkeypatch)
     await worker.queue_task
     assert calls==['autodesk','cisco']
     await worker.close()
+
+
+@pytest.mark.asyncio
+async def test_partial_atlassian_refresh_saves_matches_and_preserves_old_jobs(database,monkeypatch):
+    from app.collectors import Snapshot
+    company=next(c for c in COMPANIES if c['id']=='atlassian')
+    old=normalize(company,'old','Graduate Software Engineer','India','0–2 years of experience.','https://www.atlassian.com/company/careers/details/old')
+    new=normalize(company,'new','Graduate Software Engineer','India','0–2 years of experience.','https://www.atlassian.com/company/careers/details/new')
+    db.upsert_jobs('atlassian',[old],True)
+    with db.connection() as conn:
+        conn.execute('INSERT INTO bookmarks(job_id,saved_at) VALUES(?,?)',(old['id'],db.now()))
+    warning='Atlassian: 1 of 2 candidate job details could not be read. Earlier jobs were retained.'
+    async def collect(self,c):return Snapshot([new],False,{'new'},warning)
+    monkeypatch.setattr('app.service.Collector.collect',collect)
+    worker=RefreshService()
+    worker.start('atlassian')
+    await worker.task
+    with db.connection() as conn:
+        source=conn.execute("SELECT * FROM companies WHERE id='atlassian'").fetchone()
+        assert source['status']=='partial' and source['error']==warning and source['last_count']==1
+        assert conn.execute("SELECT COUNT(*) FROM jobs WHERE company_id='atlassian' AND active=1").fetchone()[0]==2
+        assert conn.execute('SELECT job_id FROM bookmarks').fetchone()[0]==old['id']

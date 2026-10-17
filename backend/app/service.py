@@ -51,7 +51,7 @@ class RefreshService:
                             conn.execute("UPDATE companies SET status='refreshing' WHERE id=?",(company['id'],))
                         try:
                             snapshot = await collector.collect(company)
-                            db.upsert_jobs(company['id'], snapshot.jobs, snapshot.complete,snapshot.source_ids)
+                            db.upsert_jobs(company['id'], snapshot.jobs, snapshot.complete,snapshot.source_ids,snapshot.warning)
                             success, count = 1, len(snapshot.jobs)
                         except Exception as exc:
                             log.warning("Collection failed for %s: %s",company['name'],exc)

@@ -96,3 +96,18 @@ def atlassian_postings(html):
                 walk(value)
             except ValueError:continue
     return list(found.values())
+
+
+def atlassian_matches(row, url):
+    """The embedded board is global even when the URL contains UI filters."""
+    filters = parse_qs(urlparse(url).query)
+    teams = filters.get('team', [])
+    locations = filters.get('location', [])
+    if teams and str(row.get('category') or '').casefold() not in {team.casefold() for team in teams}:
+        return False
+    if locations and not any(
+        re.search(r'(?<!\w)' + re.escape(location) + r'(?!\w)', place, re.I)
+        for location in locations for place in (row.get('locations') or [])
+    ):
+        return False
+    return True

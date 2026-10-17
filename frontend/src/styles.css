@@ -1498,7 +1498,8 @@ h1 {
 .source-status.refreshing {
   color: #7d9bb6;
 }
-.source-error {
+.source-error,
+.source-note {
   font-size: 9px;
   color: #a89d7f;
   margin-top: 12px;
@@ -2444,7 +2445,8 @@ h1 {
   .directory-card-actions a {
     font-size: 10px;
   }
-  .source-error {
+  .source-error,
+  .source-note {
     font-size: 10px;
   }
   .activity-summary {
@@ -2622,6 +2624,9 @@ h1 {
 .source-status.error,
 .source-error {
   color: #9d6454;
+}
+.source-note {
+  color: #5d6d62;
 }
 .source-status.partial {
   color: #91703a;

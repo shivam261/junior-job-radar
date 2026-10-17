@@ -75,7 +75,7 @@ def company_rows(enabled_only=False):
           ("WHERE enabled=1 " if enabled_only else "") + "ORDER BY name COLLATE NOCASE")]
 
 
-def upsert_jobs(company_id, jobs, complete,source_ids=None):
+def upsert_jobs(company_id, jobs, complete,source_ids=None,warning=None):
     timestamp = now()
     with connection() as db:
         # Retire only after a fully successful, authoritative snapshot.
@@ -94,7 +94,7 @@ def upsert_jobs(company_id, jobs, complete,source_ids=None):
             db.execute(f"INSERT INTO jobs({','.join(fields)}) VALUES({','.join('?' for _ in fields)}) ON CONFLICT(company_id,source_id) DO UPDATE SET {updates}", [values.get(f) for f in fields])
         db.execute("UPDATE companies SET status=?,last_checked=?,last_success=?,error=?,last_count=? WHERE id=?",
             ('healthy' if complete else 'partial', timestamp, timestamp,
-             None if complete else 'This page exposes only a partial snapshot. Older listings are retained; check the employer site for complete coverage.', len(jobs), company_id))
+             None if complete else (warning or 'This page exposes only a partial snapshot. Older listings are retained; check the employer site for complete coverage.')[:500], len(jobs), company_id))
 
 
 def serialize_job(row):

@@ -1250,6 +1250,12 @@ export default function App() {
                       </span>
                     </div>
                     {c.error && <p className="source-error">{c.error}</p>}
+                    {c.status === "healthy" && c.job_count === 0 && (
+                      <p className="source-note">
+                        Source checked successfully. No software roles matched
+                        the 0–2 year experience criteria.
+                      </p>
+                    )}
                     <div className="directory-metrics">
                       <span>
                         <strong>{c.job_count}</strong> live matches
