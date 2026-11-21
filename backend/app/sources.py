@@ -44,6 +44,15 @@ def identify(url):
     p=urlparse(url)
     host=(p.hostname or '').lower()
     parts=[unquote(v) for v in p.path.split('/') if v]
+    if host == 'higher.gs.com' and p.path.rstrip('/') == '/results':
+        return 'goldman', {}
+    if host in ('www.amazon.jobs', 'amazon.jobs') and p.path in ('/en/search', '/en/search.json'):
+        return 'amazon', {}
+    if host in ('www.google.com', 'google.com') and p.path.startswith('/about/careers/applications/jobs/results'):
+        return 'google', {}
+    eightfold_domains = {'jobs.ericsson.com': 'ericsson.com', 'careers.qualcomm.com': 'qualcomm.com'}
+    if host in eightfold_domains and p.path.startswith('/careers'):
+        return 'eightfold', {'domain': eightfold_domains[host]}
     if host in ('www.atlassian.com','atlassian.com') and '/company/careers' in p.path:
         return 'atlassian', {}
     if host.endswith('.myworkdayjobs.com') and parts:

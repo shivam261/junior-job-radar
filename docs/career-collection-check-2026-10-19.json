@@ -1,0 +1,114 @@
+{
+  "scope": "Read-only full Collector.collect checks; no application database writes. source_ids_count can include both ATS and portal IDs and is not necessarily a posting count.",
+  "results": [
+    {
+      "company_id": "amazon",
+      "name": "Amazon",
+      "complete": false,
+      "matched": 28,
+      "source_ids_count": 1056,
+      "warning": "Amazon search is scoped by its URL filters and result limits. Earlier jobs were retained.",
+      "error": null,
+      "duration_seconds": 16.5
+    },
+    {
+      "company_id": "browserstack",
+      "name": "BrowserStack",
+      "checked_at": "2026-10-18T18:39:30.657325+00:00",
+      "complete": true,
+      "matched": 0,
+      "source_ids_count": 31,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 1.68
+    },
+    {
+      "company_id": "ericsson",
+      "name": "Ericsson",
+      "complete": false,
+      "matched": 0,
+      "source_ids_count": 204,
+      "listed_rows": 102,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 6.86
+    },
+    {
+      "company_id": "goldman-sachs",
+      "name": "Goldman Sachs",
+      "checked_at": "2026-10-18T18:45:32.827087+00:00",
+      "complete": false,
+      "matched": 1,
+      "source_ids_count": 6,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 2.37
+    },
+    {
+      "company_id": "phonepe",
+      "name": "PhonePe",
+      "checked_at": "2026-10-18T18:39:14.491563+00:00",
+      "complete": true,
+      "matched": 0,
+      "source_ids_count": 108,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 9.32
+    },
+    {
+      "company_id": "postman",
+      "name": "Postman",
+      "checked_at": "2026-10-18T18:39:26.875852+00:00",
+      "complete": true,
+      "matched": 0,
+      "source_ids_count": 27,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 3.78
+    },
+    {
+      "company_id": "qualcomm",
+      "name": "Qualcomm",
+      "complete": false,
+      "matched": 3,
+      "source_ids_count": 1202,
+      "listed_rows": 601,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 49.71
+    },
+    {
+      "company_id": "sap",
+      "name": "SAP",
+      "checked_at": "2026-10-18T18:39:14.490086+00:00",
+      "complete": false,
+      "matched": 5,
+      "source_ids_count": null,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 20.68
+    },
+    {
+      "company_id": "siemens",
+      "name": "Siemens",
+      "complete": false,
+      "matched": 11,
+      "source_ids_count": null,
+      "listed_rows": null,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 151.71
+    },
+    {
+      "company_id": "swiggy",
+      "name": "Swiggy",
+      "checked_at": "2026-10-18T18:39:23.814331+00:00",
+      "complete": true,
+      "matched": 0,
+      "source_ids_count": 198,
+      "warning": null,
+      "error": null,
+      "duration_seconds": 3.06
+    }
+  ]
+}

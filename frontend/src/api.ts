@@ -1,8 +1,21 @@
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch("/api" + path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": decodeURIComponent(
+        document.cookie
+          .split("; ")
+          .find((c) => c.startsWith("launchpad_csrf="))
+          ?.split("=")[1] || "",
+      ),
+      ...init?.headers,
+    },
   });
+  if (response.status === 401 && !path.startsWith("/auth/")) {
+    window.dispatchEvent(new Event("session-expired"));
+  }
   if (!response.ok) {
     let message = "Something went wrong. Please try again.";
     try {
