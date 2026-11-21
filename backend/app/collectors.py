@@ -7,12 +7,12 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse, urlencode, parse_qsl
-from urllib.robotparser import RobotFileParser
 
 import httpx
 from bs4 import BeautifulSoup
 from .matching import plain, software_title, match_job, skills_from, work_mode
 from .sources import resolve_public, identify, linked_sources, atlassian_postings, atlassian_matches, InvalidSource
+from .robots import RobotsPolicy
 
 MAX_PAGES = int(os.getenv("MAX_SOURCE_PAGES", "150"))
 USER_AGENT = "LaunchpadJobCollector/1.0 (public career listings; personal use)"
@@ -111,6 +111,22 @@ class Collector:
     async def collect(self, company):
         config = json.loads(company['config']) if isinstance(company['config'], str) else company['config']
         return await getattr(self, company['adapter'])(company, config)
+
+    async def amazon(self, company, config):
+        from .amazon import collect_amazon
+        return await collect_amazon(self, company, config)
+
+    async def google(self, company, config):
+        from .google_careers import collect_google
+        return await collect_google(self, company, config)
+
+    async def eightfold(self, company, config):
+        from .eightfold import collect_eightfold
+        return await collect_eightfold(self, company, config)
+
+    async def goldman(self, company, config):
+        from .goldman import collect_goldman
+        return await collect_goldman(self, company, config)
 
     async def auto(self,c,cfg):
         source=identify(c['url'])
@@ -343,11 +359,10 @@ class Collector:
         root = f"{parts.scheme}://{parts.netloc}"
         if root not in self.robots:
             response = await self.request(root + '/robots.txt',allowed_status=(404,))
-            parser = RobotFileParser()
             if response.status_code == 404:
-                parser.parse([])
+                parser = RobotsPolicy([])
             elif response.status_code == 200:
-                parser.parse(response.text.splitlines())
+                parser = RobotsPolicy(response.text.splitlines())
             else:
                 raise SourceError('Could not verify robots.txt permissions for this careers page.')
             self.robots[root] = parser
@@ -384,6 +399,8 @@ class Collector:
         return soup, jobs
 
     async def html(self, c, cfg):
+        if cfg.get('manual_reason'):
+            raise SourceError(cfg['manual_reason'])
         # Crawl official job links and pagination with robots checks. HTML sources
         # are always partial: absence from a page is not proof a job closed.
         queue, visited, jobs, detail_count = [c['url']], set(), {}, 0
@@ -398,10 +415,10 @@ class Collector:
             soup, found = self.structured(c, response.text, str(response.url))
             # SuccessFactors and similar server-rendered detail pages may publish
             # visible job text without JobPosting JSON-LD.
-            if not found and any(part in urlparse(str(response.url)).path.lower() for part in ('/job/','/jobs/')):
-                title_node = soup.select_one('[itemprop="title"], h1')
-                desc_node = soup.select_one('[itemprop="description"], .jobdescription, .job-description, .jobDescription')
-                loc_node = soup.select_one('[itemprop="jobLocation"], .jobGeoLocation, .jobLocation')
+            if not found and any(part in urlparse(str(response.url)).path.lower() for part in ('/job/','/jobs/','/jobdetail/','/requisition/')):
+                title_node = soup.select_one(cfg.get('title_selector') or '[itemprop="title"], h1')
+                desc_node = soup.select_one(cfg.get('description_selector') or '[itemprop="description"], .jobdescription, .job-description, .jobDescription')
+                loc_node = soup.select_one(cfg.get('location_selector') or '[itemprop="jobLocation"], .jobGeoLocation, .jobLocation')
                 if title_node and desc_node:
                     readable = True
                     job = normalize(c, str(response.url), title_node.get_text(' ',strip=True),
@@ -415,7 +432,9 @@ class Collector:
                 if urlparse(href).netloc != urlparse(str(response.url)).netloc: continue
                 label=link.get_text(' ',strip=True)
                 is_job=software_title(label) and any(s in urlparse(href).path.lower() for s in ('/job/','/jobs/','/jobdetail/','/requisition/'))
-                is_next=label.lower() in ('next','next page','›','»') or 'next' in link.get('rel', []) or link.get('aria-label','').lower() == 'next page'
+                is_next=(bool(re.fullmatch(r'next(?: page)?(?:\s*[>›»]+)?',label,re.I))
+                         or label in ('›','»') or 'next' in link.get('rel', [])
+                         or link.get('aria-label','').lower().startswith(('next page','go to next page')))
                 if (is_job or is_next) and href not in visited and href not in queue:
                     queue.append(href)
                     if is_job: detail_count += 1

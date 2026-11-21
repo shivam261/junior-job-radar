@@ -6,8 +6,16 @@ from app import db
 
 @pytest.fixture
 def database(tmp_path,monkeypatch):
+    from app.auth import password_hash
     monkeypatch.setattr(db,'DB_PATH',str(tmp_path/'test.sqlite3'))
     monkeypatch.setenv('AUTO_REFRESH','false')
+    monkeypatch.setenv('APP_URL','http://localhost:8000')
+    monkeypatch.setenv('MASTER_USERNAME','test-master')
+    monkeypatch.setenv('MASTER_PASSWORD_HASH',password_hash('test-master-password-123'))
+    monkeypatch.setenv('MASTER_EMAIL','owner@example.com')
+    monkeypatch.setenv('GOOGLE_CLIENT_ID','')
+    monkeypatch.setenv('GOOGLE_CLIENT_SECRET','')
+    monkeypatch.setenv('GMAIL_APP_PASSWORD','')
     db.initialize()
     return db
 

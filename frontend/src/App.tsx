@@ -32,9 +32,11 @@ import {
   Plus,
 } from "lucide-react";
 import { api } from "./api";
+import { AuthGate, AccountPanel, AdminPanel, type User } from "./Account";
 import type { Company, Job, JobPage, Run, Stats } from "./types";
 
-type View = "discover" | "saved" | "companies" | "activity";
+type View =
+  "discover" | "saved" | "companies" | "activity" | "account" | "admin";
 const brandColors: Record<string, [string, string]> = {
   autodesk: ["#f1f4f2", "#111"],
   mastercard: ["#fff0e8", "#de642c"],
@@ -125,7 +127,39 @@ const statusText: Record<string, string> = {
 };
 
 export default function App() {
-  const [view, setView] = useState<View>("discover"),
+  return (
+    <AuthGate>
+      {(user, signOut, update) => (
+        <Workspace
+          key={user.id}
+          user={user}
+          signOut={signOut}
+          onUpdate={update}
+        />
+      )}
+    </AuthGate>
+  );
+}
+
+function Workspace({
+  user,
+  signOut,
+  onUpdate,
+}: {
+  user: User;
+  signOut: () => Promise<void>;
+  onUpdate: (u: User) => void;
+}) {
+  const isAdmin = user.role === "admin";
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const [view, setView] = useState<View>(
+      window.location.hash === "#account" ? "account" : "discover",
+    ),
     [demo, setDemo] = useState(false),
     [companies, setCompanies] = useState<Company[]>([]),
     [stats, setStats] = useState<Stats | null>(null);
@@ -271,11 +305,11 @@ export default function App() {
     stats?.latest_run?.completed,
   ]);
   useEffect(() => {
-    if (view === "activity")
+    if (view === "activity" && isAdmin)
       api<Run[]>("/runs")
         .then(setRuns)
         .catch((e) => setError(e.message));
-  }, [view, version, stats?.latest_run?.completed]);
+  }, [view, version, stats?.latest_run?.completed, isAdmin]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -357,7 +391,17 @@ export default function App() {
     { key: "discover", label: "Discover jobs", icon: LayoutGrid },
     { key: "saved", label: "Saved jobs", icon: Bookmark },
     { key: "companies", label: "Companies", icon: Building2 },
-    { key: "activity", label: "Source activity", icon: Radio },
+    { key: "account", label: "My account & emails", icon: ShieldCheck },
+    ...(isAdmin
+      ? [
+          { key: "activity" as const, label: "Source activity", icon: Radio },
+          {
+            key: "admin" as const,
+            label: "Manage accounts",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
   ];
   const filtersCount =
     selectedCompanies.length +
@@ -377,15 +421,19 @@ export default function App() {
     saved: "Good opportunities, kept close.",
     companies: "Great companies. One place.",
     activity: "A clear view of your sources.",
+    account: "Your account. Your preferences.",
+    admin: "Manage your community.",
   };
   const subtitles = {
     discover:
       "Early-career software roles. Direct from the companies you want to join.",
     saved: "Your personal shortlist, ready when you are.",
     companies:
-      "Choose the companies to follow and see exactly how their sources are doing.",
+      "Browse the company directory and see how career sources are doing.",
     activity:
       "Track refreshes, source coverage, and the freshness of your listings.",
+    account: "Manage your job emails and account settings.",
+    admin: "View accounts and control access to Launchpad.",
   };
   return (
     <div className="app-shell">
@@ -464,10 +512,10 @@ export default function App() {
             How Launchpad works
           </button>
           <div className="profile">
-            <span>ST</span>
+            <span>{initials}</span>
             <div>
-              <strong>Your personal workspace</strong>
-              <small>Local • No account needed</small>
+              <strong>{user.name}</strong>
+              <small>{isAdmin ? "Master account" : user.email}</small>
             </div>
             <span className="online-dot" />
           </div>
@@ -494,10 +542,16 @@ export default function App() {
             </span>
             <button
               className="avatar"
-              onClick={() => setHelp(true)}
-              aria-label="Workspace information"
+              onClick={() => navigate("account")}
+              aria-label="Account settings"
             >
-              ST
+              {initials}
+            </button>
+            <button
+              className="button secondary"
+              onClick={() => signOut().catch((e) => toast(e.message))}
+            >
+              Sign out
             </button>
           </div>
         </header>
@@ -511,6 +565,7 @@ export default function App() {
               <p>{subtitles[view]}</p>
             </div>
             <button
+              hidden={!isAdmin || view === "account" || view === "admin"}
               className="button secondary refresh-button"
               onClick={() => refresh()}
               disabled={refreshing || running}
@@ -1116,13 +1171,13 @@ export default function App() {
                         <button
                           className="button primary"
                           onClick={() =>
-                            stats?.total || view === "saved"
+                            stats?.total || view === "saved" || !isAdmin
                               ? clearFilters()
                               : refresh()
                           }
                           disabled={!!running}
                         >
-                          {stats?.total || view === "saved"
+                          {stats?.total || view === "saved" || !isAdmin
                             ? "Clear filters"
                             : running
                               ? "Sources refreshing…"
@@ -1172,6 +1227,7 @@ export default function App() {
                 </div>
                 <button
                   className="button primary"
+                  hidden={!isAdmin}
                   onClick={() => setAddingCompany(true)}
                 >
                   <Plus size={16} />
@@ -1225,7 +1281,7 @@ export default function App() {
                         <h3>{c.name}</h3>
                         <span>
                           {c.sector}
-                          {c.custom ? " · Added by you" : ""}
+                          {c.custom ? " · Custom source" : ""}
                         </span>
                       </div>
                       <button
@@ -1233,6 +1289,7 @@ export default function App() {
                         role="switch"
                         aria-checked={!!c.enabled}
                         aria-label={`Track ${c.name}`}
+                        disabled={!isAdmin}
                         onClick={() => toggleCompany(c)}
                       >
                         <i />
@@ -1267,6 +1324,7 @@ export default function App() {
                         Official careers <ExternalLink size={13} />
                       </a>
                       <button
+                        hidden={!isAdmin}
                         aria-label={`Refresh ${c.name}`}
                         disabled={!!running || !c.enabled}
                         onClick={() => refresh(c.id)}
@@ -1366,6 +1424,10 @@ export default function App() {
               )}
             </section>
           )}
+          {view === "account" && (
+            <AccountPanel user={user} onUpdate={onUpdate} />
+          )}
+          {view === "admin" && isAdmin && <AdminPanel />}
           <footer className="page-footer">
             <span>Made for beginnings. Built for possibilities.</span>
             <span>
@@ -1688,8 +1750,8 @@ function HelpDialog({
           <div>
             <strong>Save, review, and apply</strong>
             <p>
-              Keep a shortlist in your local SQLite database. Open the
-              employer’s original posting to verify details and apply directly.
+              Keep a private shortlist in your account. Open the employer’s
+              original posting to verify details and apply directly.
             </p>
           </div>
         </div>

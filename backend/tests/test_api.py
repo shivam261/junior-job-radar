@@ -1,7 +1,19 @@
-from fastapi.testclient import TestClient
+from contextlib import contextmanager
+from fastapi.testclient import TestClient as RawTestClient
 from app.main import app
 from app.collectors import normalize
 from app.companies import COMPANIES
+
+
+@contextmanager
+def TestClient(application):
+    # Existing API behavior is exercised through real authenticated sessions.
+    with RawTestClient(application) as client:
+        response = client.post('/api/auth/master/login', json={
+            'username': 'test-master', 'password': 'test-master-password-123'})
+        assert response.status_code == 200
+        client.headers['X-CSRF-Token'] = client.cookies['launchpad_csrf']
+        yield client
 
 
 def add_job(database,title='Software Engineer I',location='Pune, India',source='123'):

@@ -2824,3 +2824,162 @@ h1 {
     max-width: 200px;
   }
 }
+[hidden] {
+  display: none !important;
+}
+.auth-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: #f4f6f2;
+}
+.auth-card {
+  width: min(100%, 480px);
+  padding: 44px;
+  border: 1px solid #dce4dd;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 20px 70px #153c3010;
+}
+.auth-brand {
+  display: block;
+  margin-bottom: 42px;
+  font-size: 28px;
+  font-weight: 750;
+  color: #163d33;
+  text-decoration: none;
+}
+.auth-card .eyebrow {
+  font-size: 10px;
+}
+.auth-card h1 {
+  margin: 16px 0;
+  font-size: 35px;
+  line-height: 1.15;
+  letter-spacing: -1px;
+}
+.auth-card > p,
+.account-card > p {
+  color: #607269;
+  line-height: 1.7;
+}
+.google-signin {
+  width: 100%;
+  margin: 20px 0;
+  text-decoration: none;
+  justify-content: center;
+}
+.auth-note {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #68796f;
+}
+.auth-switch {
+  display: block;
+  margin: 24px auto 0;
+  color: #315f4e;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.account-panel {
+  display: grid;
+  gap: 22px;
+  max-width: 1050px;
+}
+.account-card {
+  background: white;
+  border: 1px solid #dce4dd;
+  border-radius: 16px;
+  padding: 28px;
+}
+.account-card h2 {
+  margin: 0 0 12px;
+  font-size: 21px;
+}
+.account-form {
+  display: grid;
+  gap: 18px;
+  max-width: 530px;
+  margin-top: 22px;
+}
+.account-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-form input:not([type="checkbox"]),
+.account-form select {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #cad6ce;
+  border-radius: 8px;
+  background: white;
+  color: #19392d;
+  font: inherit;
+}
+.account-form small {
+  color: #68796f;
+  font-weight: 400;
+}
+.account-form .account-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.account-form .account-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #245e45;
+}
+.account-form .button {
+  justify-self: start;
+}
+.account-message {
+  background: #edf5ee;
+  border-radius: 8px;
+  padding: 14px;
+  color: #24583c;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.account-message.error {
+  background: #fff0ed;
+  color: #a83d31;
+}
+.accounts-table-wrap {
+  overflow-x: auto;
+}
+.accounts-table {
+  width: 100%;
+  margin-top: 24px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+.accounts-table th,
+.accounts-table td {
+  border-bottom: 1px solid #e6ece6;
+  padding: 14px 12px;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+.accounts-table th {
+  color: #68796f;
+  font-weight: 500;
+}
+@media (max-width: 600px) {
+  .auth-card {
+    padding: 28px;
+  }
+  .account-card {
+    padding: 20px;
+  }
+  .topbar-actions .live-indicator {
+    display: none;
+  }
+}

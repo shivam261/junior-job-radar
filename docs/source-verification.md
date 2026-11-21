@@ -1,5 +1,7 @@
 # Source verification
 
+The latest [19 October 2026 verification](company-portals-2026-10-19.md) covers the expanded 100-company registry, corrected portals, full collection checks, and explicit manual/partial limits. The earlier results below are historical snapshots.
+
 A read-only connectivity audit was performed on 14 October 2026 against 88 registered employer sources. **61 recruiting feed endpoints responded with HTTP 200** during the audit. This is connectivity evidence, not complete collection evidence; the Companies view and Source activity show actual refresh outcomes.
 
 Corrections made from employer pages and live feed responses include:
@@ -28,7 +30,7 @@ From the project root:
 .venv/bin/python scripts/check_sources.py
 ```
 
-This emits JSON lines with company, adapter, status, source URL, and source-reported job count. It does not write to SQLite or collect job descriptions. Feed addresses and access rules change; use refresh outcomes for current source health.
+This emits JSON lines separating portal reachability from first-page feed/schema checks, with counts, errors, and timestamps. Add `--company browserstack` to select a source and `--report /tmp/portal-audit.jsonl` to save the output. It does not write to SQLite or collect job descriptions. Feed addresses and access rules change; use refresh outcomes for current source health.
 
 ## Public source references
 

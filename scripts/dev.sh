@@ -9,9 +9,9 @@ cleanup() {
   kill "$API_PID" "$WEB_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
-(cd "$PROJECT_ROOT/backend" && "$PROJECT_ROOT/.venv/bin/python" -m uvicorn app.main:app --host 127.0.0.1 --port 8000) &
+(cd "$PROJECT_ROOT/backend" && APP_URL=http://localhost:5173 "$PROJECT_ROOT/.venv/bin/python" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log) &
 API_PID=$!
 (cd "$PROJECT_ROOT/frontend" && npm run dev) &
 WEB_PID=$!
-echo "Launchpad: http://127.0.0.1:5173 | API docs: http://127.0.0.1:8000/docs"
+echo "Launchpad: http://localhost:5173"
 wait "$API_PID" "$WEB_PID"

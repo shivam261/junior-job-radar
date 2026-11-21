@@ -15,6 +15,11 @@ from app import db
  ('https://careers.smartrecruiters.com/Acme','smartrecruiters','Acme'),
  ('https://example.wd5.myworkdayjobs.com/en-US/External','workday',None),
  ('https://www.atlassian.com/company/careers/all-jobs','atlassian',None),
+ ('https://higher.gs.com/results?EXPERIENCE_LEVEL=Analyst','goldman',None),
+ ('https://www.amazon.jobs/en/search?base_query=software','amazon',None),
+ ('https://www.google.com/about/careers/applications/jobs/results/?location=India','google',None),
+ ('https://jobs.ericsson.com/careers?location=India','eightfold',None),
+ ('https://careers.qualcomm.com/careers','eightfold',None),
  ('https://example.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs','oracle',None),
 ])
 def test_ats_detection(url,adapter,token):

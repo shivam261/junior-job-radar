@@ -6,6 +6,7 @@ from pathlib import Path
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from .companies import COMPANIES
+from . import config  # Load the root .env before reading DATABASE_PATH.
 
 DB_PATH = os.getenv("DATABASE_PATH", str(Path(__file__).resolve().parents[1] / "data" / "jobs.sqlite3"))
 
@@ -52,6 +53,32 @@ def initialize(mark_interrupted=True):
           id TEXT PRIMARY KEY, started_at TEXT, finished_at TEXT, status TEXT,
           total INTEGER, completed INTEGER DEFAULT 0, succeeded INTEGER DEFAULT 0,
           failed INTEGER DEFAULT 0, matched INTEGER DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY, google_sub TEXT UNIQUE, email TEXT, username TEXT UNIQUE,
+          name TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('user','admin')),
+          password_hash TEXT, active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL, last_login TEXT,
+          alerts_enabled INTEGER NOT NULL DEFAULT 0,
+          alert_interval INTEGER NOT NULL DEFAULT 21600,
+          alert_keywords TEXT NOT NULL DEFAULT '', alert_location TEXT NOT NULL DEFAULT '',
+          alerts_since TEXT NOT NULL, last_email_at TEXT, email_error TEXT,
+          email_retry_at REAL NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS user_bookmarks (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+          saved_at TEXT NOT NULL, PRIMARY KEY(user_id,job_id));
+        CREATE TABLE IF NOT EXISTS sessions (
+          token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          csrf_hash TEXT NOT NULL, expires_at REAL NOT NULL);
+        CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+        CREATE TABLE IF NOT EXISTS oauth_flows (
+          state_hash TEXT PRIMARY KEY, nonce TEXT NOT NULL, verifier TEXT NOT NULL, expires_at REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS login_attempts (bucket TEXT NOT NULL, attempted_at REAL NOT NULL);
+        CREATE INDEX IF NOT EXISTS login_attempt_window ON login_attempts(bucket,attempted_at);
+        CREATE TABLE IF NOT EXISTS email_deliveries (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+          sent_at TEXT NOT NULL, PRIMARY KEY(user_id,job_id));
         ''')
         # Additive migrations preserve existing live jobs and saved jobs.
         for table,column,definition in [('companies','custom','INTEGER DEFAULT 0'),('jobs','closed_at','TEXT'),('jobs','closed_reason','TEXT')]:

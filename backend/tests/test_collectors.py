@@ -63,3 +63,33 @@ async def test_readable_html_without_matching_experience_is_partial_success():
         result=await Collector(client).collect(company)
     assert result.jobs==[]
     assert not result.complete
+
+
+@pytest.mark.asyncio
+async def test_siemens_visible_details_and_next_page():
+    company = next(c for c in COMPANIES if c['id'] == 'siemens')
+    paths = []
+
+    def respond(request):
+        paths.append(str(request.url))
+        if request.url.path == '/robots.txt':
+            return httpx.Response(200, text='User-agent: *\nAllow: /')
+        if '/JobDetail/' in request.url.path:
+            return httpx.Response(200, text='<h3 class="section__header__text__title">Software Engineer I</h3><div id="section1__content">1–2 years of experience. Python.</div><div class="tf_locations"><div class="article__content__view__field__value">Pune, India</div></div>')
+        if request.url.params.get('folderOffset'):
+            return httpx.Response(200, text='<a href="/en_US/externaljobs/JobDetail/42">Software Engineer I</a>')
+        return httpx.Response(200, text='<a aria-label="Go to Next Page, Number 2" href="?search=software&folderOffset=6">Next &gt;&gt;</a>')
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        result = await Collector(client).collect(company)
+    assert not result.complete and len(result.jobs) == 1
+    assert result.jobs[0]['location'] == 'Pune, India'
+    assert any('folderOffset=6' in path for path in paths)
+
+
+@pytest.mark.asyncio
+async def test_manual_source_explains_limitation_without_scraping_linkedin():
+    company = next(c for c in COMPANIES if c['id'] == 'swish')
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: pytest.fail('Manual source must not be crawled'))) as client:
+        with pytest.raises(SourceError, match='Swish links to LinkedIn'):
+            await Collector(client).collect(company)
